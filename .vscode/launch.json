@@ -1,0 +1,24 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "(gdb) Launch wpa-client",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/wpa-client",
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}",
+			"externalConsole": false,
+			"MIMode": "gdb",
+			"miDebuggerPath": "/usr/bin/gdb",
+			"setupCommands": [
+				{
+					"description": "Enable pretty-printing for gdb",
+					"text": "-enable-pretty-printing -gdb-set detach-on-fork off",
+					"ignoreFailures": true
+				}
+			],
+			"preLaunchTask": "Build"
+		}
+	]
+}

@@ -69,27 +69,36 @@ void loop(DBusConnection* conn) {
                     dbus_message_iter_get_basic(&args, &strBuffer);
                     printf("Received string: \n %s \n",strBuffer);
 
-                    /* FIXME : got weird characters
-                    dbus_message_iter_get_basic(&args, &strValue);
-                    */
+                } else if (argType == DBUS_TYPE_ARRAY) {
+                    printf("Signature of message: %s\n", dbus_message_iter_get_signature(&args));
+                    DBusMessageIter iter_dict, iter_dict_entry, iter_dict_content;
+                    char* key = NULL;
+                    char* value = NULL;
+                    int i = 0;
 
-                    /* FIXME : segmentation fault !
-                    dbus_message_iter_get_fixed_array(
-                            &args, &strValue, buffSize);
-                    */
+                    dbus_message_iter_recurse(&args, &iter_dict);
 
-                    /* FIXME : segmentation fault !
-                    dbus_message_iter_recurse(&args, &subArgs);
-                    */
+                    while (dbus_message_iter_get_arg_type(&iter_dict) == DBUS_TYPE_DICT_ENTRY) {
+                        printf("Iteration: %d\n", i);
+                        printf("Outer container is %d\n", dbus_message_iter_get_arg_type(&iter_dict));
+                        dbus_message_iter_recurse(&iter_dict, &iter_dict_entry);
+                        printf("Inner container is: %d\n", dbus_message_iter_get_arg_type(&iter_dict_entry));
+                        dbus_message_iter_next(&iter_dict);
+                        dbus_message_iter_get_basic(&iter_dict_entry, &key);
+                        printf("Received key: \n %s \n", key);
 
-                    /* FIXME : deprecated!
-                    if(dbus_message_iter_get_array_len(&args) > buffSize)
-                        printf("message content to big for local buffer!");
-                    */
-
-                    //printf("String value was %s\n", strValue);
+                        if (dbus_message_iter_get_arg_type(&iter_dict) == DBUS_TYPE_VARIANT) {
+                            //dbus_message_iter_open_container(&iter_dict_entry, DBUS_TYPE_VARIANT, NULL, &iter_dict_content);
+                            dbus_message_iter_get_basic(&iter_dict_content, &value);
+                            printf("Received value: \n %s \n", value);
+                        }
+                        i++;
+                    }
+                    printf("Exited because arg type was: %d\n", dbus_message_iter_get_arg_type(&iter_dict));
+                    i = 0;
+                    printf("Exit loop, type is %d\n", dbus_message_iter_get_arg_type(&iter_dict));
                 } else
-                    printf("Arg type not implemented yet !\n");
+                    printf("Arg type %d not implemented yet !\n", argType);
 
                 if (dbus_message_iter_has_next(&args))
                     dbus_message_iter_next(&args);
@@ -181,4 +190,44 @@ int main(int argc, char* argv[]) {
     dbus_connection_close(conn);
 
     return 0;
+}
+
+
+/**
+ * Start reading from a dbus dict.
+ *
+ * @param iter A valid DBusMessageIter pointing to the start of the dict
+ * @param iter_dict (out) A DBusMessageIter to be passed to
+ *    wpa_dbus_dict_read_next_entry()
+ * @error on failure a descriptive error
+ * @return TRUE on success, FALSE on failure
+ *
+ */
+dbus_bool_t wpa_dbus_dict_open_read(DBusMessageIter *iter,
+				    DBusMessageIter *iter_dict,
+				    DBusError *error)
+{
+	int type;
+
+	printf("%s: start reading a dict entry", __func__);
+	if (!iter || !iter_dict) {
+		dbus_set_error_const(error, DBUS_ERROR_FAILED,
+				     "[internal] missing message iterators");
+		return FALSE;
+	}
+
+	type = dbus_message_iter_get_arg_type(iter);
+	if (type != DBUS_TYPE_ARRAY ||
+	    dbus_message_iter_get_element_type(iter) != DBUS_TYPE_DICT_ENTRY) {
+		printf("%s: unexpected message argument types (arg=%c element=%c)",
+			   __func__, type,
+			   type != DBUS_TYPE_ARRAY ? '?' :
+			   dbus_message_iter_get_element_type(iter));
+		dbus_set_error_const(error, DBUS_ERROR_INVALID_ARGS,
+				     "unexpected message argument types");
+		return FALSE;
+	}
+
+	dbus_message_iter_recurse(iter, iter_dict);
+	return TRUE;
 }
